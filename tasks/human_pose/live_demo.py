@@ -90,6 +90,6 @@ def execute(change):
 execute({'new': camera.value})
 
 camera.observe(execute, names='value')
-camera.unobserve_all()
+#camera.unobserve_all()
 
 
