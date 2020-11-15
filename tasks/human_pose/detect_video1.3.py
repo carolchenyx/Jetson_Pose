@@ -13,31 +13,30 @@ from trt_pose.parse_objects import ParseObjects
 import argparse
 import os.path
 import math
-import numpy as np
 
 '''
 hnum: 0 based human index
 kpoint : keypoints (float type range : 0.0 ~ 1.0 ==> later multiply by image width, height
 '''
+
+
 def get_keypoint(humans, hnum, peaks):
-    #check invalid human index
+    # check invalid human index
     kpoint = []
     human = humans[0][hnum]
     C = human.shape[0]
-    global peak5
-    global peak7
-    global peak9
+    global peak5, peak6, peak7, peak9, peak15, peak16
     for j in range(C):
         k = int(human[j])
         if k >= 0:
-            peak = peaks[0][j][k]   # peak[1]:width, peak[0]:height
+            peak = peaks[0][j][k]  # peak[1]:width, peak[0]:height
             peak = (j, float(peak[0]), float(peak[1]))
             kpoint.append(peak)
-            print('index:%d : success [%5.3f, %5.3f]'%(j, peak[1], peak[2]) )
+            print('index:%d : success [%5.3f, %5.3f]' % (j, peak[1], peak[2]))
         else:
             peak = (j, None, None)
             kpoint.append(peak)
-            print('index:%d : None %d'%(j, k) )
+            print('index:%d : None %d' % (j, k))
 
         while j == 5:
             if k >= 0:
@@ -46,6 +45,15 @@ def get_keypoint(humans, hnum, peaks):
                 break
             else:
                 peak5 = (j, 0, 0)
+                break
+
+        while j == 6:
+            if k >= 0:
+                peak6 = peaks[0][j][k]  # peak[1]:width, peak[0]:height
+                peak6 = (j, float(peak[1]), float(peak[2]))
+                break
+            else:
+                peak6 = (j, 0, 0)
                 break
 
         while j == 7:
@@ -65,15 +73,29 @@ def get_keypoint(humans, hnum, peaks):
             else:
                 peak9 = (j, 0, 0)
                 break
+
+        while j == 15:
+            if k >= 0:
+                peak15 = peaks[0][j][k]  # peak[1]:width, peak[0]:height
+                peak15 = (j, float(peak[1]), float(peak[2]))
+                break
+            else:
+                peak15 = (j, 0, 0)
+                break
+
+        while j == 16:
+            if k >= 0:
+                peak16 = peaks[0][j][k]  # peak[1]:width, peak[0]:height
+                peak16 = (j, float(peak[1]), float(peak[2]))
+                break
+            else:
+                peak16 = (j, 0, 0)
+                break
     return kpoint
 
 
-
-
-
-
 parser = argparse.ArgumentParser(description='TensorRT pose estimation run')
-parser.add_argument('--model', type=str, default='resnet', help = 'resnet or densenet' )
+parser.add_argument('--model', type=str, default='resnet', help='resnet or densenet')
 args = parser.parse_args()
 
 with open('human_pose.json', 'r') as f:
@@ -83,7 +105,6 @@ topology = trt_pose.coco.coco_category_to_topology(human_pose)
 
 num_parts = len(human_pose['keypoints'])
 num_links = len(human_pose['skeleton'])
-
 
 if 'resnet' in args.model:
     print('------ model = resnet--------')
@@ -104,7 +125,7 @@ else:
 data = torch.zeros((1, 3, HEIGHT, WIDTH)).cuda()
 if os.path.exists(OPTIMIZED_MODEL) == False:
     model.load_state_dict(torch.load(MODEL_WEIGHTS))
-    model_trt = torch2trt.torch2trt(model, [data], fp16_mode=True, max_workspace_size=1<<25)
+    model_trt = torch2trt.torch2trt(model, [data], fp16_mode=True, max_workspace_size=1 << 25)
     torch.save(model_trt.state_dict(), OPTIMIZED_MODEL)
 
 model_trt = TRTModule()
@@ -123,6 +144,7 @@ mean = torch.Tensor([0.485, 0.456, 0.406]).cuda()
 std = torch.Tensor([0.229, 0.224, 0.225]).cuda()
 device = torch.device('cuda')
 
+
 def preprocess(image):
     global device
     device = torch.device('cuda')
@@ -132,12 +154,13 @@ def preprocess(image):
     image.sub_(mean[:, None, None]).div_(std[:, None, None])
     return image[None, ...]
 
+
 def execute(img, src, t):
     color = (0, 255, 0)
     data = preprocess(img)
     cmap, paf = model_trt(data)
     cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
-    counts, objects, peaks = parse_objects(cmap, paf)#, cmap_threshold=0.15, link_threshold=0.15)
+    counts, objects, peaks = parse_objects(cmap, paf)  # , cmap_threshold=0.15, link_threshold=0.15)
     fps = 1.0 / (time.time() - t)
     for i in range(counts[0]):
         keypoints = get_keypoint(objects, i, peaks)
@@ -146,22 +169,49 @@ def execute(img, src, t):
                 x = round(keypoints[j][2] * WIDTH * X_compress)
                 y = round(keypoints[j][1] * HEIGHT * Y_compress)
                 cv2.circle(src, (x, y), 3, color, 2)
-                cv2.putText(src , "%d" % int(keypoints[j][0]), (x + 5, y),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
+                cv2.putText(src, "%d" % int(keypoints[j][0]), (x + 5, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
                 cv2.circle(src, (x, y), 3, color, 2)
-        if (peak5[1] != 0 and peak7[1] != 0 and peak9[1] != 0):
-            a = (peak7[1] - peak5[1]) ** 2 + (peak7[2] - peak5[2]) ** 2
-            b = (peak7[1] - peak9[1]) ** 2 + (peak7[2] - peak9[2]) ** 2
-            c = (peak9[1] - peak5[1]) ** 2 + (peak9[2] - peak5[2]) ** 2
-            leftelbow_angle = math.acos((a+b-c) / math.sqrt(4*a*b)) * (180 / math.pi)
-            cv2.putText(src, "angle: %f" % (leftelbow_angle), (60, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
-            break
-        else:
-            #print("Not detect Leftelbow Angle")
-            break
-    print("FPS:%f "%(fps))
-    #draw_objects(img, counts, objects, peaks)
+        # pose suggestion
+        if peak5[1] != 0 and peak6[1] != 0 and peak15[1] != 0 and peak16[1] != 0:
+            LenShoulder = peak6[1] - peak5[1]
+            LenAnkle = peak16[1] - peak15[1]
+            if LenShoulder < 0.4 * LenAnkle:
+                cv2.putText(src, "Turning is right", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+                if peak5[1] != 0 and peak7[1] != 0 and peak9[1] != 0:
+                    a = (peak7[1] - peak5[1]) ** 2 + (peak7[2] - peak5[2]) ** 2
+                    b = (peak7[1] - peak9[1]) ** 2 + (peak7[2] - peak9[2]) ** 2
+                    c = (peak9[1] - peak5[1]) ** 2 + (peak9[2] - peak5[2]) ** 2
+                    leftelbow_angle = math.acos((a + b - c) / math.sqrt(4 * a * b)) * (180 / math.pi)
+                    cv2.putText(src, "angle: %f" % (leftelbow_angle), (20, 100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 1)
+                    break
+                else:
+                    # print("Not detect Leftelbow Angle")
+                    break
+            else:
+                cv2.putText(src, "You should turn more", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+                break
 
-    cv2.putText(src , "FPS: %f" % (fps), (20, 20),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+        else:
+            break
+
+
+    """
+        #Calculated angle
+        if peak5[1] != 0 and peak7[1] != 0 and peak9[1] != 0:
+           a = (peak7[1] - peak5[1]) ** 2 + (peak7[2] - peak5[2]) ** 2
+           b = (peak7[1] - peak9[1]) ** 2 + (peak7[2] - peak9[2]) ** 2
+           c = (peak9[1] - peak5[1]) ** 2 + (peak9[2] - peak5[2]) ** 2
+           leftelbow_angle = math.acos((a+b-c) / math.sqrt(4*a*b)) * (180 / math.pi)
+           cv2.putText(src, "angle: %f" % (leftelbow_angle), (60, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+           break
+        else:
+        #print("Not detect Leftelbow Angle")
+           break
+    """
+    print("FPS:%f " % (fps))
+
+    # draw_objects(img, counts, objects, peaks)
+    cv2.putText(src, "FPS: %f" % (fps), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
 
     out_video.write(src)
     return src
@@ -186,7 +236,7 @@ if cap is None:
 parse_objects = ParseObjects(topology)
 draw_objects = DrawObjects(topology)
 
-while cap.isOpened() and count < 500:
+while cap.isOpened() and count < 1000:
     t = time.time()
     ret_val, dst = cap.read()
     if ret_val == False:
@@ -195,11 +245,10 @@ while cap.isOpened() and count < 500:
 
     img = cv2.resize(dst, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
     img = execute(img, dst, t)
-    cv2.imshow("result",img)
+    cv2.imshow("result", img)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
     count += 1
-
 
 cv2.destroyAllWindows()
 out_video.release()
