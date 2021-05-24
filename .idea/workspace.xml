@@ -19,7 +19,9 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="dd2358f2-687c-417b-8593-e203b2c6ef06" name="Default Changelist" comment="" />
+    <list default="true" id="dd2358f2-687c-417b-8593-e203b2c6ef06" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/tasks/human_pose/detect_video1.2.py" beforeDir="false" afterPath="$PROJECT_DIR$/tasks/human_pose/detect_video1.2.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -35,7 +37,7 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="JupyterTrust" id="102b8a66-8a92-42c6-a1dc-d9f272dc0790" />
+  <component name="JupyterTrust" id="dd880b6f-f8da-4e75-b5c2-77b55034446e" />
   <component name="ProjectId" id="1jXk0JCcGlO7mq8BwwkV2IXuxz9" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -143,6 +145,7 @@
       <workItem from="1605161992004" duration="898000" />
       <workItem from="1605249912238" duration="595000" />
       <workItem from="1605331348879" duration="5212000" />
+      <workItem from="1605508034728" duration="2685000" />
     </task>
     <servers />
   </component>
@@ -206,6 +209,10 @@
       <screen x="0" y="0" width="1536" height="824" />
     </state>
     <state x="282" y="102" key="SettingsEditor/0.0.1536.824@0.0.1536.824" timestamp="1604028294478" />
+    <state x="683" y="277" width="618" height="522" key="find.popup" timestamp="1605510119307">
+      <screen x="65" y="24" width="1855" height="1056" />
+    </state>
+    <state x="683" y="277" width="618" height="522" key="find.popup/1920.0.1920.1080/65.24.1855.1056@65.24.1855.1056" timestamp="1605510119307" />
     <state x="660" y="186" key="ftp.server.browser" timestamp="1604030533456">
       <screen x="0" y="0" width="1536" height="824" />
     </state>
