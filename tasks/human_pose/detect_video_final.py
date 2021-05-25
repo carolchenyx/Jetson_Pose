@@ -34,16 +34,18 @@ class human_detection:
         num_parts = len(human_pose['keypoints'])
         num_links = len(human_pose['skeleton'])
         self.model = trt_pose.models.resnet18_baseline_att(num_parts, 2 * num_links).cuda().eval()
-        WIDTH = 224
-        HEIGHT = 224
-        data = torch.zeros((1, 3, HEIGHT, WIDTH)).cuda()
-        if os.path.exists(OPTIMIZED_MODEL) == False:
+        self.WIDTH = 224
+        self.HEIGHT = 224
+        data = torch.zeros((1, 3, self.HEIGHT, self.WIDTH)).cuda()
+        if os.path.exists(self.OPTIMIZED_MODEL) == False:
             self.model.load_state_dict(torch.load(self.MODEL_WEIGHTS))
             self.model_trt = torch2trt.torch2trt(self.model, [data], fp16_mode=True, max_workspace_size=1 << 25)
             torch.save(self.model_trt.state_dict(), self.OPTIMIZED_MODEL)
         self.topology = trt_pose.coco.coco_category_to_topology(human_pose)
         self.model_trt = TRTModule()
         self.model_trt.load_state_dict(torch.load(self.OPTIMIZED_MODEL))
+        self.parse_objects = ParseObjects(self.topology)
+        self.draw_objects = DrawObjects(self.topology)
 
     def get_keypoint(self,humans, hnum, peaks):
         # check invalid human index
@@ -143,16 +145,16 @@ class human_detection:
         data = self.preprocess(img)
         cmap, paf = self.model_trt(data)
         cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
-        counts, objects, peaks = parse_objects(cmap, paf)  # , cmap_threshold=0.15, link_threshold=0.15)
-        X_compress = 640.0 / WIDTH * 1.0
-        Y_compress = 480.0 / HEIGHT * 1.0
+        counts, objects, peaks = self.parse_objects(cmap, paf)  # , cmap_threshold=0.15, link_threshold=0.15)
+        X_compress = 640.0 / self.WIDTH * 1.0
+        Y_compress = 480.0 / self.HEIGHT * 1.0
         fps = 1.0 / (time.time() - t)
         for i in range(counts[0]):
             keypoints = self.get_keypoint(objects, i, peaks)
             for j in range(len(keypoints)):
                 if keypoints[j][1]:
-                    x = round(keypoints[j][2] * WIDTH * X_compress)
-                    y = round(keypoints[j][1] * HEIGHT * Y_compress)
+                    x = round(keypoints[j][2] * self.WIDTH * X_compress)
+                    y = round(keypoints[j][1] * self.HEIGHT * Y_compress)
                     cv2.circle(src, (x, y), 3, color, 2)
                     cv2.putText(src, "%d" % int(keypoints[j][0]), (x + 5, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
                     cv2.circle(src, (x, y), 3, color, 2)
@@ -172,8 +174,10 @@ class human_detection:
                         cv2.putText(src, "You should return more", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
                     break
 
-            while peak5[1] != 0 and peak7[1] != 0 and peak9[1] != 0:
-                cv2.putText(src, "angle: %f" % angle(), (100, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+            # while peak5[1] != 0 and peak7[1] != 0 and peak9[1] != 0:
+            #     leftelbow_angle = self.angle
+            #     print("!!!!!!!!!!!!!!!11", leftelbow_angle)
+            #     # cv2.putText(src, str("angle: %f" % leftelbow_angle), (100, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
         return src
 
     def angle(self):
@@ -182,7 +186,10 @@ class human_detection:
             b = (peak7[1] - peak9[1]) ** 2 + (peak7[2] - peak9[2]) ** 2
             c = (peak9[1] - peak5[1]) ** 2 + (peak9[2] - peak5[2]) ** 2
             leftelbow_angle = math.acos((a + b - c) / math.sqrt(4 * a * b)) * (180 / math.pi)
+
             return leftelbow_angle
+        else:
+            return 0
 
 
     def run(self):
@@ -196,15 +203,14 @@ class human_detection:
             print("Camera Open Error")
             sys.exit(0)
 
-        parse_objects = ParseObjects(self.topology)
-        draw_objects = DrawObjects(self.topology)
+
         while cap.isOpened():
             t = time.time()
             ret_val, dst = cap.read()
             if ret_val == False:
                 print("Camera read Error")
                 break
-            img = cv2.resize(dst, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
+            img = cv2.resize(dst, dsize=(self.WIDTH, self.HEIGHT), interpolation=cv2.INTER_AREA)
             img = self.visualize(img, dst, t)
             cv2.imshow("result", img)
             out_video.write(img)
@@ -214,3 +220,6 @@ class human_detection:
         cv2.destroyAllWindows()
         out_video.release()
         cap.release()
+
+human = human_detection()
+human.run()
