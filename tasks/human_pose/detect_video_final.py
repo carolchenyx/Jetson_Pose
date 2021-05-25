@@ -18,6 +18,12 @@ hnum: 0 based human index
 kpoint : keypoints (float type range : 0.0 ~ 1.0 ==> later multiply by image width, height
 '''
 
+parser = argparse.ArgumentParser(description='TensorRT pose estimation run')
+parser.add_argument('--model', type=str, default='resnet', help='resnet or densenet')
+args = parser.parse_args()
+
+
+
 
 def get_keypoint(humans, hnum, peaks):
     # check invalid human index
@@ -92,9 +98,7 @@ def get_keypoint(humans, hnum, peaks):
     return kpoint
 
 
-parser = argparse.ArgumentParser(description='TensorRT pose estimation run')
-parser.add_argument('--model', type=str, default='resnet', help='resnet or densenet')
-args = parser.parse_args()
+
 
 with open('human_pose.json', 'r') as f:
     human_pose = json.load(f)
@@ -182,7 +186,7 @@ def visualize(img, src, t):
         while peak5[1] != 0 and peak7[1] != 0 and peak9[1] != 0:
             cv2.putText(src, "angle: %f" % angle(), (100, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
 
-    out_video.write(src)
+
     return src
     #print("FPS:%f " % (fps))
 
@@ -218,6 +222,7 @@ while cap.isOpened():
     img = cv2.resize(dst, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
     img = visualize(img, dst, t)
     cv2.imshow("result", img)
+    out_video.write(img)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
